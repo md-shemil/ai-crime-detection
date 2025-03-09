@@ -1,23 +1,34 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Grid2X2, Grid3X3, Maximize2 } from "lucide-react";
-import { useStore } from "../store";
 
 const LiveView: React.FC = () => {
   const [layout, setLayout] = useState<"2x2" | "3x3">("2x2");
+  const videoRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
+
   const cameras = [
     {
       id: 1,
       name: "Camera 1",
-      url: "http://172.16.44.139:5000/video_feed",
+      url: "http://172.16.44.140:5000/video_feed",
       status: "online",
     },
-    // {
-    //   id: 2,
-    //   name: "Camera 2",
-    //   url: "http://172.16.44.129:5000/video_feed",
-    //   status: "online",
-    // },
-  ]; // Using a static camera feed
+    // Add more cameras if needed
+  ];
+
+  const handleFullscreen = (cameraId: number) => {
+    const videoElement = videoRefs.current[cameraId];
+    if (videoElement) {
+      if (videoElement.requestFullscreen) {
+        videoElement.requestFullscreen();
+      } else if ((videoElement as any).webkitRequestFullscreen) {
+        (videoElement as any).webkitRequestFullscreen(); // Safari
+      } else if ((videoElement as any).mozRequestFullScreen) {
+        (videoElement as any).mozRequestFullScreen(); // Firefox
+      } else if ((videoElement as any).msRequestFullscreen) {
+        (videoElement as any).msRequestFullscreen(); // IE/Edge
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -51,6 +62,7 @@ const LiveView: React.FC = () => {
         {cameras.map((camera) => (
           <div
             key={camera.id}
+            ref={(el) => (videoRefs.current[camera.id] = el)}
             className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden group"
           >
             {/* Display Live Video Feed */}
@@ -73,7 +85,11 @@ const LiveView: React.FC = () => {
                     )}
                   </p>
                 </div>
-                <button className="p-2 text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Fullscreen Button */}
+                <button
+                  onClick={() => handleFullscreen(camera.id)}
+                  className="p-2 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                >
                   <Maximize2 size={20} />
                 </button>
               </div>

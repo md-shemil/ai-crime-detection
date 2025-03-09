@@ -1,13 +1,37 @@
-import React, { useState } from 'react';
-import { useStore } from '../store';
+import React, { useState, useEffect } from "react";
+import { useStore } from "../store";
 
 function Incidents() {
   const alerts = useStore((state) => state.alerts);
   const updateAlertStatus = useStore((state) => state.updateAlertStatus);
-  const [filter, setFilter] = useState<Alert['status'] | 'all'>('all');
+  const addAlert = useStore((state) => state.addAlert); // Add this to your store
+  const [filter, setFilter] = useState<Alert["status"] | "all">("all");
+
+  // Fetch alerts from the Flask server
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetch("http://172.16.44.140:5000/api/alert")
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.message === "Cell phone detected!") {
+            // Add a new alert to the store
+            addAlert({
+              id: Date.now(), // Unique ID
+              timestamp: new Date().toISOString(),
+              type: "cell_phone_detected",
+              severity: "high",
+              status: "new",
+            });
+          }
+        })
+        .catch((error) => console.error("Error fetching alerts:", error));
+    }, 1000); // Check every second
+
+    return () => clearInterval(interval); // Cleanup interval on unmount
+  }, [addAlert]);
 
   const filteredAlerts = alerts.filter(
-    (alert) => filter === 'all' || alert.status === filter
+    (alert) => filter === "all" || alert.status === filter
   );
 
   return (
@@ -17,7 +41,9 @@ function Incidents() {
         <div className="flex items-center space-x-2">
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value as Alert['status'] | 'all')}
+            onChange={(e) =>
+              setFilter(e.target.value as Alert["status"] | "all")
+            }
             className="rounded-lg border-gray-300"
           >
             <option value="all">All Incidents</option>
@@ -58,37 +84,44 @@ function Incidents() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="capitalize">
-                    {alert.type.replace('_', ' ')}
+                    {alert.type.replace("_", " ")}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      alert.severity === 'high'
-                        ? 'bg-red-100 text-red-800'
-                        : alert.severity === 'medium'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-blue-100 text-blue-800'
+                      alert.severity === "high"
+                        ? "bg-red-100 text-red-800"
+                        : alert.severity === "medium"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-blue-100 text-blue-800"
                     }`}
                   >
                     {alert.severity}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="capitalize">{alert.status.replace('_', ' ')}</span>
+                  <span className="capitalize">
+                    {alert.status.replace("_", " ")}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <select
                     value={alert.status}
                     onChange={(e) =>
-                      updateAlertStatus(alert.id, e.target.value as Alert['status'])
+                      updateAlertStatus(
+                        alert.id,
+                        e.target.value as Alert["status"]
+                      )
                     }
                     className="rounded-md border-gray-300 text-sm"
                   >
                     <option value="new">Mark as New</option>
                     <option value="reviewing">Mark as Reviewing</option>
                     <option value="resolved">Mark as Resolved</option>
-                    <option value="false_positive">Mark as False Positive</option>
+                    <option value="false_positive">
+                      Mark as False Positive
+                    </option>
                   </select>
                 </td>
               </tr>
@@ -100,4 +133,4 @@ function Incidents() {
   );
 }
 
-export default Incidents
+export default Incidents;
