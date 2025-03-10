@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useStore } from "../store"; // Assuming you have Zustand for state management
+import { useStore } from "../store"; // Zustand store
 
 function Incidents() {
   const alerts = useStore((state) => state.alerts);
@@ -7,36 +7,28 @@ function Incidents() {
   const addAlert = useStore((state) => state.addAlert);
   const [filter, setFilter] = useState("all");
 
-  // Fetch alerts from Flask server every second
+  // Fetch alerts from Flask API every second
   useEffect(() => {
     const interval = setInterval(() => {
       fetch("http://172.16.44.139:5000/api/alert")
         .then((response) => response.json())
         .then((data) => {
-          if (
-            data.message.includes("detected") &&
-            !data.message.includes("No threat")
-          ) {
-            const type = data.message
-              .replace(" detected!", "")
-              .replace(" ", "_");
-            const severity = ["violence", "gun", "weapon"].some((keyword) =>
-              data.message.includes(keyword)
-            )
-              ? "critical"
-              : "high";
-
-            addAlert({
-              id: Date.now(), // Unique ID
-              timestamp: new Date().toISOString(),
-              type,
-              severity,
-              status: "new",
+          if (Array.isArray(data)) {
+            data.forEach((alert) => {
+              if (alert.type && alert.severity) {
+                addAlert({
+                  id: alert.id,
+                  timestamp: alert.timestamp,
+                  type: alert.type, // 🔥 Fixed: Now using API response directly
+                  severity: alert.severity, // 🔥 Fixed: Now using API response directly
+                  status: "new",
+                });
+              }
             });
           }
         })
         .catch((error) => console.error("Error fetching alerts:", error));
-    }, 1000); // Check every second
+    }, 1000);
 
     return () => clearInterval(interval); // Cleanup interval on unmount
   }, [addAlert]);
