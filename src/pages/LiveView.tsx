@@ -1,88 +1,67 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Grid2X2, Grid3X3, Maximize2 } from "lucide-react";
+import axios from "axios";
 
 const LiveView: React.FC = () => {
   const [layout, setLayout] = useState<"2x2" | "3x3">("2x2");
+  const [cameras, setCameras] = useState<
+    { id: number; name: string; streamUrl: string }[]
+  >([]);
   const [cameraStatuses, setCameraStatuses] = useState<{
     [key: number]: string;
   }>({});
+
   const videoRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
 
-  const cameras = [
-    {
-      id: 1,
-      name: "Camera 1",
-      url: "http://172.16.44.140:5000/video_feed",
-    },
-    {
-      id: 2,
-      name: "Camera 2",
-      url: "http://172.16.44.130:5000/video_feed",
-    },
-    {
-      id: 3,
-      name: "Camera 3",
-      url: "http://172.16.44.139:5000/video_feed",
-    },
-    // Add more cameras if needed
-  ];
+  // Fetch camera list from Flask backend
+  const fetchCameras = useCallback(async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/api/cameras");
+      setCameras(response.data);
+    } catch (error) {
+      console.error("Error fetching cameras:", error);
+    }
+  }, []);
 
-  // Function to handle fullscreen mode
+  useEffect(() => {
+    fetchCameras();
+  }, [fetchCameras]);
+
+  // Function to fetch camera statuses
+  const fetchCameraStatuses = useCallback(() => {
+    cameras.forEach(async (camera) => {
+      try {
+        const response = await axios.get(`${camera.streamUrl}/api/health`);
+        setCameraStatuses((prev) => ({
+          ...prev,
+          [camera.id]: response.data.camera_status,
+        }));
+      } catch (error) {
+        setCameraStatuses((prev) => ({ ...prev, [camera.id]: "" }));
+      }
+    });
+  }, [cameras]);
+
+  // Poll camera statuses every 10 seconds
+  useEffect(() => {
+    fetchCameraStatuses();
+    const interval = setInterval(fetchCameraStatuses, 10000);
+    return () => clearInterval(interval);
+  }, [fetchCameraStatuses]);
+
+  // Handle fullscreen mode
   const handleFullscreen = (cameraId: number) => {
     const videoElement = videoRefs.current[cameraId];
     if (videoElement) {
-      if (videoElement.requestFullscreen) {
-        videoElement.requestFullscreen();
-      } else if ((videoElement as any).webkitRequestFullscreen) {
-        (videoElement as any).webkitRequestFullscreen(); // Safari
-      } else if ((videoElement as any).mozRequestFullScreen) {
-        (videoElement as any).mozRequestFullScreen(); // Firefox
-      } else if ((videoElement as any).msRequestFullscreen) {
-        (videoElement as any).msRequestFullscreen(); // IE/Edge
-      }
+      if (videoElement.requestFullscreen) videoElement.requestFullscreen();
+      else if ((videoElement as any).webkitRequestFullscreen)
+        (videoElement as any).webkitRequestFullscreen();
+      else if ((videoElement as any).mozRequestFullScreen)
+        (videoElement as any).mozRequestFullScreen();
+      else if ((videoElement as any).msRequestFullscreen)
+        (videoElement as any).msRequestFullscreen();
     }
   };
-
-  // Function to fetch camera status
-  const fetchCameraStatus = async (cameraId: number, url: string) => {
-    try {
-      const response = await fetch(`${url}/api/health`);
-      const data = await response.json();
-      setCameraStatuses((prevStatuses) => ({
-        ...prevStatuses,
-        [cameraId]: data.camera_status,
-      }));
-    } catch (error) {
-      console.error(`Failed to fetch status for camera ${cameraId}:`, error);
-      setCameraStatuses((prevStatuses) => ({
-        ...prevStatuses,
-        [cameraId]: "offline",
-      }));
-    }
-  };
-
-  // Effect to auto-start video feeds and fetch camera statuses
-  useEffect(() => {
-    cameras.forEach((camera) => {
-      const videoElement = document.getElementById(
-        `video-${camera.id}`
-      ) as HTMLImageElement;
-      if (videoElement) {
-        videoElement.src = camera.url; // Dynamically set the video feed URL
-      }
-      fetchCameraStatus(camera.id, camera.url); // Fetch camera status
-    });
-
-    // Periodically check camera status (e.g., every 10 seconds)
-    const interval = setInterval(() => {
-      cameras.forEach((camera) => {
-        fetchCameraStatus(camera.id, camera.url);
-      });
-    }, 10000); // 10 seconds
-
-    // Cleanup interval on component unmount
-    return () => clearInterval(interval);
-  }, [cameras]);
 
   return (
     <div className="space-y-6">
@@ -119,9 +98,10 @@ const LiveView: React.FC = () => {
             ref={(el) => (videoRefs.current[camera.id] = el)}
             className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden group"
           >
-            {/* Display Live Video Feed */}
+            {/* Video Feed */}
             <img
-              id={`video-${camera.id}`} // Unique ID for each video feed
+              id={`video-${camera.id}`}
+              src={`${camera.streamUrl}?${new Date().getTime()}`} // Prevent caching issues
               alt={camera.name}
               className="w-full h-full object-cover"
             />
@@ -135,11 +115,10 @@ const LiveView: React.FC = () => {
                     {cameraStatuses[camera.id] === "online" ? (
                       <span className="text-green-400">● Online</span>
                     ) : (
-                      <span className="text-red-400">● Offline</span>
+                      <span className="text-red-400"></span>
                     )}
                   </p>
                 </div>
-                {/* Fullscreen Button */}
                 <button
                   onClick={() => handleFullscreen(camera.id)}
                   className="p-2 text-white opacity-0 group-hover:opacity-100 transition-opacity"
