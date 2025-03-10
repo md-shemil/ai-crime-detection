@@ -1,24 +1,33 @@
 import React, { useState, useEffect } from "react";
-import { useStore } from "../store";
+import { useStore } from "../store"; // Assuming you have Zustand for state management
+
 function Incidents() {
   const alerts = useStore((state) => state.alerts);
   const updateAlertStatus = useStore((state) => state.updateAlertStatus);
-  const addAlert = useStore((state) => state.addAlert); // Add this to your store
-  const [filter, setFilter] = useState<Alert["status"] | "all">("all");
+  const addAlert = useStore((state) => state.addAlert);
+  const [filter, setFilter] = useState("all");
 
-  // Fetch alerts from the Flask server
+  // Fetch alerts from Flask server every second
   useEffect(() => {
     const interval = setInterval(() => {
-      fetch("http://172.16.44.129:5000/api/alert")
+      fetch("http://172.16.44.140:5000/api/alert")
         .then((response) => response.json())
         .then((data) => {
-          if (data.message === "Cell phone detected!") {
-            // Add a new alert to the store
+          if (data.message.includes("detected")) {
+            const type = data.message
+              .replace(" detected!", "")
+              .replace(" ", "_");
+            const severity = ["violence", "gun", "weapon"].some((keyword) =>
+              data.message.includes(keyword)
+            )
+              ? "critical"
+              : "high";
+
             addAlert({
               id: Date.now(), // Unique ID
               timestamp: new Date().toISOString(),
-              type: "cell_phone_detected",
-              severity: "high",
+              type,
+              severity,
               status: "new",
             });
           }
@@ -40,9 +49,7 @@ function Incidents() {
         <div className="flex items-center space-x-2">
           <select
             value={filter}
-            onChange={(e) =>
-              setFilter(e.target.value as Alert["status"] | "all")
-            }
+            onChange={(e) => setFilter(e.target.value)}
             className="rounded-lg border-gray-300"
           >
             <option value="all">All Incidents</option>
@@ -89,11 +96,9 @@ function Incidents() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      alert.severity === "high"
+                      alert.severity === "critical"
                         ? "bg-red-100 text-red-800"
-                        : alert.severity === "medium"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-blue-100 text-blue-800"
+                        : "bg-yellow-100 text-yellow-800"
                     }`}
                   >
                     {alert.severity}
@@ -108,19 +113,14 @@ function Incidents() {
                   <select
                     value={alert.status}
                     onChange={(e) =>
-                      updateAlertStatus(
-                        alert.id,
-                        e.target.value as Alert["status"]
-                      )
+                      updateAlertStatus(alert.id, e.target.value)
                     }
                     className="rounded-md border-gray-300 text-sm"
                   >
-                    <option value="new">Mark as New</option>
-                    <option value="reviewing">Mark as Reviewing</option>
-                    <option value="resolved">Mark as Resolved</option>
-                    <option value="false_positive">
-                      Mark as False Positive
-                    </option>
+                    <option value="new">New</option>
+                    <option value="reviewing">Reviewing</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="false_positive">False Positive</option>
                   </select>
                 </td>
               </tr>
