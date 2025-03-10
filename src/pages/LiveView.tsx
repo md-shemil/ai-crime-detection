@@ -9,7 +9,7 @@ const LiveView: React.FC = () => {
     {
       id: 1,
       name: "Camera 1",
-      url: "http://172.16.44.140:5000/video_feed",
+      url: "http://172.16.44.129:5000/video_feed",
       status: "online",
     },
     // Add more cameras if needed

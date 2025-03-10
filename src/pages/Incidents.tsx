@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useStore } from "../store";
-
 function Incidents() {
   const alerts = useStore((state) => state.alerts);
   const updateAlertStatus = useStore((state) => state.updateAlertStatus);
@@ -10,7 +9,7 @@ function Incidents() {
   // Fetch alerts from the Flask server
   useEffect(() => {
     const interval = setInterval(() => {
-      fetch("http://172.16.44.140:5000/api/alert")
+      fetch("http://172.16.44.129:5000/api/alert")
         .then((response) => response.json())
         .then((data) => {
           if (data.message === "Cell phone detected!") {
