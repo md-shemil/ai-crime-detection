@@ -10,10 +10,13 @@ function Incidents() {
   // Fetch alerts from Flask server every second
   useEffect(() => {
     const interval = setInterval(() => {
-      fetch("http://172.16.44.140:5000/api/alert")
+      fetch("http://172.16.44.139:5000/api/alert")
         .then((response) => response.json())
         .then((data) => {
-          if (data.message.includes("detected")) {
+          if (
+            data.message.includes("detected") &&
+            !data.message.includes("No threat")
+          ) {
             const type = data.message
               .replace(" detected!", "")
               .replace(" ", "_");
